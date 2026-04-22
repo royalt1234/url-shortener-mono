@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener – Frontend</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0A90CB 0%, #4A6FD4 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            padding-top: 20px;
+        }
+
+        header h1 { font-size: 3em; margin-bottom: 10px; }
+        header p  { font-size: 1.1em; opacity: 0.9; }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #0A90CB;
+            padding-bottom: 10px;
+        }
+
+        .form-group { margin-bottom: 15px; }
+
+        label { display: block; margin-bottom: 5px; color: #555; font-weight: 500; }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #0A90CB;
+            box-shadow: 0 0 0 3px rgba(10,144,203,0.1);
+        }
+
+        button {
+            background: linear-gradient(135deg, #0A90CB 0%, #4A6FD4 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(87,125,229,0.4);
+        }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+
+        .stat-box { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 2em; font-weight: bold; color: #0A90CB; }
+        .stat-label { color: #666; font-size: 0.9em; margin-top: 5px; }
+
+        .result-box {
+            background: #f0f4ff;
+            border: 2px solid #0A90CB;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .result-box.show { display: block; }
+
+        .links-section { grid-column: 1 / -1; }
+
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .link-card {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .link-card:hover { transform: translateY(-5px); box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+
+        .link-short-code {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #0A90CB;
+            margin-bottom: 10px;
+        }
+
+        .link-original {
+            font-size: 0.9em;
+            color: #666;
+            word-break: break-all;
+            margin-bottom: 10px;
+            max-height: 60px;
+            overflow: hidden;
+        }
+
+        .link-stats { display: flex; gap: 15px; margin-bottom: 10px; font-size: 0.9em; color: #555; }
+
+        .link-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .link-actions button { flex: 1; padding: 8px; font-size: 0.9em; }
+
+        .btn-copy      { background: #0A90CB; }
+        .btn-analytics { background: #4A6FD4; }
+        .btn-delete    { background: #ff6b6b; }
+
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .error {
+            color: #721c24;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px; right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .click-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .main-content  { grid-template-columns: 1fr; }
+            header h1      { font-size: 2em; }
+            .links-grid    { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔗 URL Shortener</h1>
+            <p>Create short links and track analytics in real-time</p>
+            <p style="font-size:0.9em;opacity:0.8;margin-top:10px;">Monorepo Demo — frontend</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Create Short Link -->
+            <div class="card">
+                <h2>Create Short Link</h2>
+                <div id="message"></div>
+                <form id="shortenForm">
+                    <div class="form-group">
+                        <label for="originalUrl">Original URL *</label>
+                        <input type="url" id="originalUrl" placeholder="https://example.com/very/long/url" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customCode">Custom Code (optional)</label>
+                        <input type="text" id="customCode" placeholder="mycode123">
+                    </div>
+                    <div class="form-group">
+                        <label for="linkTitle">Title (optional)</label>
+                        <input type="text" id="linkTitle" placeholder="My awesome link">
+                    </div>
+                    <button type="submit">Shorten URL</button>
+                </form>
+                <div id="resultBox" class="result-box">
+                    <strong>Short URL Created:</strong>
+                    <div id="resultContent" style="margin-top:10px;"></div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="card">
+                <h2>Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="totalLinks">0</div>
+                        <div class="stat-label">Total Links</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="totalClicks">0</div>
+                        <div class="stat-label">Total Clicks</div>
+                    </div>
+                </div>
+                <button onclick="loadStats()" style="width:100%;">Refresh Stats</button>
+            </div>
+
+            <!-- All Links -->
+            <div class="card links-section">
+                <h2>Your Links</h2>
+                <div id="linksContainer" class="links-grid">
+                    <p style="color:#999;">Loading links...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Modal -->
+    <div id="analyticsModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <h2 id="analyticsTitle">Analytics</h2>
+            <div id="analyticsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const API = "http://localhost:8000";
+
+        document.getElementById("shortenForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const url    = document.getElementById("originalUrl").value;
+            const code   = document.getElementById("customCode").value || null;
+            const title  = document.getElementById("linkTitle").value  || null;
+
+            const params = new URLSearchParams({ original_url: url });
+            if (code)  params.append("custom_code", code);
+            if (title) params.append("title", title);
+
+            try {
+                const res  = await fetch(`${API}/shorten?${params}`, { method: "POST" });
+                if (!res.ok) { const err = await res.json(); showMsg(err.detail || "Error", "error"); return; }
+                const data = await res.json();
+                showMsg("Short URL created!", "success");
+                document.getElementById("resultContent").innerHTML =
+                    `<div><strong>Code:</strong> ${data.short_code}</div>
+                     <div><strong>URL:</strong> <code>${data.short_url}</code></div>
+                     <button onclick="copy('${data.short_url}')">Copy</button>`;
+                document.getElementById("resultBox").classList.add("show");
+                document.getElementById("shortenForm").reset();
+                loadLinks(); loadStats();
+            } catch (err) { showMsg("Error: " + err.message, "error"); }
+        });
+
+        async function loadLinks() {
+            const res   = await fetch(`${API}/api/links`);
+            const links = await res.json();
+            const el    = document.getElementById("linksContainer");
+            if (!links.length) { el.innerHTML = "<p style='color:#999;grid-column:1/-1'>No links yet</p>"; return; }
+            el.innerHTML = links.map(l => `
+                <div class="link-card">
+                    <div class="link-short-code">${l.short_code}</div>
+                    <div class="link-original" title="${l.original_url}">${l.original_url}</div>
+                    ${l.title ? `<div style="font-weight:500;margin-bottom:10px">${l.title}</div>` : ""}
+                    <div class="link-stats">
+                        <span>📊 Clicks: <strong>${l.clicks}</strong></span>
+                        <span>📅 ${new Date(l.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div class="link-actions">
+                        <button class="btn-copy"      onclick="copy('${l.short_url}')">Copy</button>
+                        <button class="btn-analytics" onclick="analytics('${l.short_code}')">Analytics</button>
+                        <button class="btn-delete"    onclick="del('${l.short_code}')">Delete</button>
+                    </div>
+                </div>`).join("");
+        }
+
+        async function loadStats() {
+            const res  = await fetch(`${API}/api/stats`);
+            const data = await res.json();
+            document.getElementById("totalLinks").textContent  = data.total_links;
+            document.getElementById("totalClicks").textContent = data.total_clicks;
+        }
+
+        async function analytics(code) {
+            const res  = await fetch(`${API}/api/analytics/${code}`);
+            const data = await res.json();
+            document.getElementById("analyticsTitle").textContent = `Analytics — ${code}`;
+            document.getElementById("analyticsContent").innerHTML = `
+                <p><strong>Original:</strong> <a href="${data.original_url}" target="_blank">${data.original_url}</a></p>
+                <p><strong>Total Clicks:</strong> ${data.total_clicks}</p>
+                <p><strong>Created:</strong> ${new Date(data.created_at).toLocaleString()}</p>
+                <div style="margin-top:20px"><h3>Click History</h3>
+                ${data.click_details.reverse().map(c => `
+                    <div class="click-item">
+                        <strong>${new Date(c.clicked_at || c.timestamp).toLocaleString()}</strong><br>
+                        🌐 ${c.user_agent ? c.user_agent.substring(0, 60) : "Unknown"}
+                        ${c.ip_address ? `<br>IP: ${c.ip_address}` : ""}
+                    </div>`).join("") || "<p style='color:#999'>No clicks yet</p>"}
+                </div>`;
+            document.getElementById("analyticsModal").classList.add("show");
+        }
+
+        async function del(code) {
+            if (!confirm("Delete this link?")) return;
+            const res = await fetch(`${API}/api/links/${code}`, { method: "DELETE" });
+            if (res.ok) { showMsg("Deleted!", "success"); loadLinks(); loadStats(); }
+        }
+
+        function copy(text) { navigator.clipboard.writeText(text).then(() => showMsg("Copied!", "success")); }
+        function closeModal()  { document.getElementById("analyticsModal").classList.remove("show"); }
+        function showMsg(msg, type) {
+            const el = document.getElementById("message");
+            el.className = type; el.textContent = msg; el.style.display = "block";
+            setTimeout(() => el.style.display = "none", 3000);
+        }
+
+        loadLinks();
+        loadStats();
+        setInterval(() => { loadStats(); loadLinks(); }, 5000);
+    </script>
+</body>
+</html>

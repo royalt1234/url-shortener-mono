@@ -1,0 +1,13 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "Static HTML frontend for the URL Shortener — frontend service in monorepo",
+  "scripts": {
+    "start": "npx serve . -p 3000",
+    "lint":  "npx html-validate index.html"
+  },
+  "devDependencies": {
+    "serve": "^14.2.1",
+    "html-validate": "^8.18.1"
+  }
+}

@@ -1,0 +1,121 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/azure-pipelines-vscode/main/service-schema.json
+
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: "ubuntu-latest"
+
+jobs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # JOB 1 — Detect which folders changed
+  # ══════════════════════════════════════════════════════════════════
+  - job: DetectChanges
+    displayName: "Detect Changed Folders"
+    steps:
+      - checkout: self
+        fetchDepth: 0
+
+      - bash: |
+          CHANGED=$(git diff --name-only HEAD HEAD~1)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          echo "##vso[task.setvariable variable=buildBackend;isOutput=true]$(echo "$CHANGED" | grep -q 'backend/' && echo 'yes' || echo 'no')"
+          echo "##vso[task.setvariable variable=buildFrontend;isOutput=true]$(echo "$CHANGED" | grep -q 'frontend/' && echo 'yes' || echo 'no')"
+          echo "##vso[task.setvariable variable=buildAnalytics;isOutput=true]$(echo "$CHANGED" | grep -q 'analytics-reporter/' && echo 'yes' || echo 'no')"
+        name: flags
+
+  # ══════════════════════════════════════════════════════════════════
+  # JOB 2 — api1: Python / FastAPI (URL Shortener Backend)
+  # ══════════════════════════════════════════════════════════════════
+  - job: BuildBackend
+    displayName: "backend — Python FastAPI Backend"
+    dependsOn: DetectChanges
+    condition: eq(dependencies.DetectChanges.outputs['flags.buildBackend'], 'yes')
+
+    steps:
+      - checkout: self
+
+      # Install Python dependencies from backend/requirements.txt
+      - script: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+        displayName: "Install Python dependencies"
+
+      # Run pytest tests with a coverage report
+      - script: |
+          cd backend
+          pytest tests/ -v --cov=. --cov-report=term-missing
+        displayName: "Run pytest tests"
+
+      # Build the Docker image for backend
+      - script: |
+          docker build -t url-shortener-backend:$(Build.BuildId) ./backend
+        displayName: "Build Docker image"
+
+  # ══════════════════════════════════════════════════════════════════
+  # JOB 3 — api2: HTML Frontend (static site via Node/serve)
+  # ══════════════════════════════════════════════════════════════════
+  - job: BuildFrontend
+    displayName: "frontend — HTML Frontend"
+    dependsOn: DetectChanges
+    condition: eq(dependencies.DetectChanges.outputs['flags.buildFrontend'], 'yes')
+
+    steps:
+      - checkout: self
+
+      # Install npm devDependencies (html-validate, serve)
+      - script: |
+          cd frontend
+          npm install
+        displayName: "Install Node dependencies"
+
+      # Validate the HTML file for correctness
+      - script: |
+          cd frontend
+          npx html-validate index.html
+        displayName: "Lint HTML (html-validate)"
+
+      # Build the Docker image for frontend
+      - script: |
+          docker build -t url-shortener-frontend:$(Build.BuildId) ./frontend
+        displayName: "Build Docker image"
+
+  # ══════════════════════════════════════════════════════════════════
+  # JOB 4 — api3: Node.js Analytics Reporter
+  # ══════════════════════════════════════════════════════════════════
+  - job: BuildAnalytics
+    displayName: "analytics-reporter — Node.js Analytics Reporter"
+    dependsOn: DetectChanges
+    condition: eq(dependencies.DetectChanges.outputs['flags.buildAnalytics'], 'yes')
+
+    steps:
+      - checkout: self
+
+      # Install all npm dependencies including devDependencies (jest, supertest)
+      - script: |
+          cd analytics-reporter
+          npm install
+        displayName: "Install Node dependencies"
+
+      # Syntax-check the main file using Node's built-in parser
+      - script: |
+          cd analytics-reporter
+          node --check index.js
+        displayName: "Syntax check (node --check)"
+
+      # Run Jest unit tests with coverage
+      - script: |
+          cd analytics-reporter
+          npm test
+        displayName: "Run Jest tests"
+
+      # Build the Docker image for analytics-reporter
+      - script: |
+          docker build -t analytics-reporter:$(Build.BuildId) ./analytics-reporter
+        displayName: "Build Docker image"
